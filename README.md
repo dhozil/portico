@@ -250,6 +250,10 @@ arithmetic and the live board, read from the contract. The workspace sits behind
 `#/job/<id>`, `#/passport` and `#/protocol`. Every view is static and responsive; the landing page
 degrades to a single column on a phone.
 
+The board filters dossiers by **All**, **Open**, **Active** (hired, delivered or under appeal),
+**Settled** and **Mine** (a wallet that is the employer, applicant or referrer). The chosen tab
+survives opening a dossier and coming back.
+
 The app reads directly from the contract. Connecting a wallet unlocks posting, vouching, applying,
 reviewing, hiring, delivering, appealing, settling and withdrawing. On connect — and before any
 write — the app switches the wallet to GenLayer Studionet, adding the chain if the wallet has never

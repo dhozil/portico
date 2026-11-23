@@ -538,6 +538,97 @@ button {
   color: var(--muted-inv);
 }
 
+.board-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 18px;
+}
+
+.board-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.board-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted-inv);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.board-tab:hover {
+  border-color: var(--brass);
+  color: var(--paper);
+}
+
+.board-tab.is-active {
+  background: var(--paper);
+  border-color: var(--paper);
+  color: var(--ink);
+}
+
+.board-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(242, 239, 228, 0.1);
+  font-size: 8px;
+  letter-spacing: 0;
+}
+
+.board-tab.is-active .board-tab-count {
+  background: rgba(11, 25, 22, 0.12);
+}
+
+.board .empty p {
+  color: var(--muted-inv);
+}
+
+.board-empty-action {
+  margin-top: 14px;
+}
+
+@media (max-width: 520px) {
+  .board-tab {
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    font-size: 8.5px;
+  }
+
+  .board-tabs {
+    flex-wrap: nowrap;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .board-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .board-bar {
+    margin-bottom: 14px;
+  }
+}
+
 .job-list {
   border-top: 1px solid var(--line);
 }
@@ -2362,6 +2453,16 @@ button {
 
   .job-sub {
     white-space: normal;
+  }
+
+  .foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .foot .mono {
+    overflow-wrap: anywhere;
   }
 
   .dossier {

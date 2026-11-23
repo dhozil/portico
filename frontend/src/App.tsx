@@ -12,7 +12,7 @@ import {
   write,
 } from './api'
 import type { Job, Profile, Stats, Terms, TxRun, Wallet } from './types'
-import { gen, num, parseGen, short } from './format'
+import { gen, num, parseGen, sameAddress, short } from './format'
 import { Button, Chip, Empty, Input, Notice, Panel, Spinner, StatusPill } from './ui'
 import JobPage from './JobPage'
 import PassportPage from './PassportPage'
@@ -49,6 +49,7 @@ export default function App() {
   const [notice, setNotice] = useState<{ tone: 'ok' | 'bad' | 'info'; text: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [credit, setCredit] = useState<bigint>(0n)
+  const [boardFilter, setBoardFilter] = useState<BoardFilter>('all')
 
   useEffect(() => {
     const onHash = () => {
@@ -269,7 +270,14 @@ export default function App() {
         ) : null}
 
         {route.name === 'board' ? (
-          <Board account={account} refresh={refresh} run={run} connect={connect} />
+          <Board
+            account={account}
+            refresh={refresh}
+            run={run}
+            connect={connect}
+            filter={boardFilter}
+            setFilter={setBoardFilter}
+          />
         ) : null}
         {route.name === 'job' ? (
           <JobPage
@@ -300,16 +308,32 @@ export default function App() {
   )
 }
 
+type BoardFilter = 'all' | 'open' | 'active' | 'settled' | 'mine'
+
+const BOARD_FILTERS: { id: BoardFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'open', label: 'Open' },
+  { id: 'active', label: 'Active' },
+  { id: 'settled', label: 'Settled' },
+  { id: 'mine', label: 'Mine' },
+]
+
+const IN_FLIGHT = new Set(['HIRED', 'DELIVERED', 'VERDICT', 'APPEALED'])
+
 function Board({
   account,
   refresh,
   run,
   connect,
+  filter,
+  setFilter,
 }: {
   account: string | null
   refresh: number
   run: (fn: string, args: unknown[], value: bigint, label: string) => Promise<unknown>
   connect: () => Promise<boolean>
+  filter: BoardFilter
+  setFilter: (filter: BoardFilter) => void
 }) {
   const [terms, setTerms] = useState<Terms | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
@@ -354,6 +378,46 @@ function Board({
       live = false
     }
   }, [refresh])
+
+  const allJobs = jobs ?? []
+  const isMine = (job: Job) =>
+    sameAddress(job.employer, account) ||
+    sameAddress(job.candidate, account) ||
+    (Boolean(job.referrer) && sameAddress(job.referrer, account))
+
+  const buckets: Record<BoardFilter, Job[]> = {
+    all: allJobs,
+    open: allJobs.filter((job) => job.status === 'OPEN'),
+    active: allJobs.filter((job) => IN_FLIGHT.has(job.status)),
+    settled: allJobs.filter((job) => job.status === 'SETTLED'),
+    mine: account ? allJobs.filter(isMine) : [],
+  }
+  const visible = buckets[filter]
+
+  const emptyCopy = {
+    all: {
+      title: 'No roles posted yet',
+      body: 'The first dossier sets the terms: escrow, acceptance criteria, and the split between applicant and referrer.',
+    },
+    open: {
+      title: 'No roles are taking applications',
+      body: 'Post a role, or switch to Settled to read how earlier dossiers ended and what they paid.',
+    },
+    active: {
+      title: 'Nothing is in flight',
+      body: 'Hired roles, deliveries waiting on a verdict and live appeals appear here until they settle.',
+    },
+    settled: {
+      title: 'No settled dossiers yet',
+      body: 'A dossier lands here once a verdict has paid the applicant and the referrer and closed the escrow.',
+    },
+    mine: {
+      title: account ? 'No dossiers include you yet' : 'Connect to see your dossiers',
+      body: account
+        ? 'Post a role, vouch for someone, or apply — anything your wallet is party to appears here.'
+        : 'Your roles, applications and vouches are read from the wallet that signed them.',
+    },
+  }[filter]
 
   return (
     <div className="page">
@@ -424,21 +488,50 @@ function Board({
         <div className="board-head">
           <h2>The board</h2>
           <div className="board-meta mono">
-            {jobs ? jobs.length : 0} {jobs?.length === 1 ? 'dossier' : 'dossiers'} · fee {terms ? num(terms.fee_bps) / 100 : '—'}%
+            {jobs
+              ? `${visible.length}${visible.length !== jobs.length ? ` of ${jobs.length}` : ''} ${visible.length === 1 ? 'dossier' : 'dossiers'}`
+              : 'reading the chain'}{' '}
+            · fee {terms ? num(terms.fee_bps) / 100 : '—'}%
+          </div>
+        </div>
+
+        <div className="board-bar">
+          <div className="board-tabs" role="group" aria-label="Filter the board">
+            {BOARD_FILTERS.map((item) => {
+              const active = filter === item.id
+              const count = buckets[item.id].length
+              return (
+                <button
+                  key={item.id}
+                  className={`board-tab${active ? ' is-active' : ''}`}
+                  aria-pressed={active}
+                  onClick={() => setFilter(item.id)}
+                >
+                  {item.label}
+                  <span className="board-tab-count">{count}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {error ? <Notice tone="bad">{error}</Notice> : null}
         {!jobs && !error ? <Spinner /> : null}
-        {jobs && jobs.length === 0 ? (
-          <Empty
-            title="No roles posted yet"
-            body="The first dossier sets the terms: escrow, acceptance criteria, and the split between applicant and referrer."
-          />
+        {jobs && visible.length === 0 ? (
+          <>
+            <Empty title={emptyCopy.title} body={emptyCopy.body} />
+            {filter === 'mine' && !account ? (
+              <div className="board-empty-action">
+                <Button tone="ghost" onClick={() => void connect()}>
+                  Connect wallet
+                </Button>
+              </div>
+            ) : null}
+          </>
         ) : null}
 
         <div className="job-list">
-          {jobs?.map((job) => (
+          {visible.map((job) => (
             <button key={job.job_id} className="job-row" onClick={() => navigate('/job/' + job.job_id)}>
               <span className={`job-flag flag-${job.status.toLowerCase()}`} />
               <span className="job-main">
