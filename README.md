@@ -256,8 +256,9 @@ reviewing, hiring, delivering, appealing, settling and withdrawing.
 ### Deploy to Vercel
 
 Set the Vercel project's **Root Directory** to `frontend`. Vercel detects Vite, installs from
-`frontend/package-lock.json`, runs `npm run build` and serves `frontend/dist`; [`frontend/vercel.json`](frontend/vercel.json)
-pins the build command and output directory. `frontend/.env.production` pins the live contract for the
+`frontend/package-lock.json`, runs `npm run build` and serves `frontend/dist`; the root and
+[`frontend/vercel.json`](frontend/vercel.json) both pin commands that are relative to that directory
+(`npm run build`, output `dist`). `frontend/.env.production` pins the live contract for the
 deployed build — override `VITE_CONTRACT_ADDRESS` in the project settings to point the site elsewhere.
 Routing is hash-based, so no rewrites are needed.
 
