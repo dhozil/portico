@@ -1,0 +1,65 @@
+[project]
+name = "portico"
+version = "0.1.0"
+description = "Portico: referral-gated hiring where GenLayer validators verify the applicant and the delivered work, and escrow pays the applicant and the referrer automatically on outcome."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = [
+  "genlayer",
+  "intelligent-contract",
+  "hiring",
+  "referral",
+  "outcome-based-payment",
+  "portable-reputation",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Testing",
+]
+
+dependencies = [
+  "genlayer-test>=0.29",
+  "genvm-linter>=0.11",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+]
+
+[project.urls]
+Homepage = "https://docs.genlayer.com"
+
+# This repository is a contract, its tests and its tooling. It is not an
+# importable library: contracts/portico.py is a GenVM entry point that must
+# never be installed as a module, and the direct-mode tests load it by path.
+[tool.setuptools]
+packages = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = [
+  "direct: direct-mode test, runs contract code in-process with mocked web and LLM calls",
+  "slow: integration test that runs real consensus and real model calls",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+  # The contract module is a GenVM entry point: genvm-linter owns its style.
+  "E501",
+  "B008",
+]
+
+[tool.ruff.format]
+quote-style = "double"
