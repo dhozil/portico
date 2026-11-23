@@ -78,6 +78,42 @@ export async function read<T>(functionName: string, args: unknown[] = []): Promi
   })
 }
 
+const CHAIN_HEX = '0x' + CHAIN.id.toString(16)
+
+type ProviderError = { code?: number; message?: string }
+
+/**
+ * A wallet connected to another network refuses `eth_sendTransaction` with
+ * "chainId should be same as current chainId". Switch first, and add the chain
+ * when the wallet has never seen it (MetaMask error 4902).
+ */
+export async function ensureChain(provider: Eip1193): Promise<void> {
+  const current = String(await provider.request({ method: 'eth_chainId' })).toLowerCase()
+  if (current === CHAIN_HEX) return
+  const switchParams = [{ chainId: CHAIN_HEX }]
+  try {
+    await provider.request({ method: 'wallet_switchEthereumChain', params: switchParams })
+  } catch (err) {
+    const code = (err as ProviderError)?.code
+    if (code !== 4902 && code !== -32603) throw err
+    await provider.request({
+      method: 'wallet_addEthereumChain',
+      params: [
+        {
+          chainId: CHAIN_HEX,
+          chainName: CHAIN.name,
+          nativeCurrency: CHAIN.nativeCurrency,
+          rpcUrls: CHAIN.rpcUrls.default.http,
+          blockExplorerUrls: CHAIN.blockExplorers?.default
+            ? [CHAIN.blockExplorers.default.url]
+            : undefined,
+        },
+      ],
+    })
+    await provider.request({ method: 'wallet_switchEthereumChain', params: switchParams })
+  }
+}
+
 export async function connectWallet(): Promise<{ address: string; provider: Eip1193 }> {
   if (!window.ethereum) {
     throw new Error('No EIP-1193 wallet found. Install MetaMask or another browser wallet to transact.')
@@ -86,6 +122,7 @@ export async function connectWallet(): Promise<{ address: string; provider: Eip1
   if (!accounts || !accounts.length) {
     throw new Error('The wallet returned no account.')
   }
+  await ensureChain(window.ethereum)
   return { address: accounts[0], provider: window.ethereum }
 }
 

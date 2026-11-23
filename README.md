@@ -251,7 +251,9 @@ arithmetic and the live board, read from the contract. The workspace sits behind
 degrades to a single column on a phone.
 
 The app reads directly from the contract. Connecting a wallet unlocks posting, vouching, applying,
-reviewing, hiring, delivering, appealing, settling and withdrawing.
+reviewing, hiring, delivering, appealing, settling and withdrawing. On connect — and before any
+write — the app switches the wallet to GenLayer Studionet, adding the chain if the wallet has never
+seen it, so `eth_sendTransaction` cannot fail on a chain mismatch.
 
 ### Deploy to Vercel
 

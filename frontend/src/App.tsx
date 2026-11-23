@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CONTRACT,
   IS_CONFIGURED,
   NETWORK_NAME,
   connectWallet,
+  ensureChain,
   explorerTx,
   read,
   silentAccount,
@@ -95,6 +96,15 @@ export default function App() {
         setNotice({ tone: 'bad', text: 'Connect a wallet to sign transactions.' })
         return null
       }
+      if (wallet) {
+        try {
+          await ensureChain(wallet.provider)
+        } catch (err) {
+          const text = String((err as Error)?.message ?? err)
+          setNotice({ tone: 'bad', text: 'Switch the wallet to the GenLayer network first. ' + text })
+          return null
+        }
+      }
       setNotice(null)
       setTxRun({ label, stage: 'SIGNING' })
       try {
@@ -126,17 +136,19 @@ export default function App() {
         return null
       }
     },
-    [client],
+    [client, wallet],
   )
 
-  async function connect() {
+  async function connect(): Promise<boolean> {
     try {
       const session = await connectWallet()
       setAccount(session.address)
       setWallet({ address: session.address, provider: session.provider })
       setNotice({ tone: 'info', text: 'Wallet connected as ' + session.address })
+      return true
     } catch (err) {
       setNotice({ tone: 'bad', text: String((err as Error)?.message ?? err) })
+      return false
     }
   }
 
@@ -297,13 +309,28 @@ function Board({
   account: string | null
   refresh: number
   run: (fn: string, args: unknown[], value: bigint, label: string) => Promise<unknown>
-  connect: () => Promise<void>
+  connect: () => Promise<boolean>
 }) {
   const [terms, setTerms] = useState<Terms | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
   const [jobs, setJobs] = useState<Job[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
+  const postRef = useRef<HTMLDivElement>(null)
+
+  /** One click from the hero: connect if needed, then reveal the posting form. */
+  async function startPosting() {
+    if (posting) {
+      setPosting(false)
+      return
+    }
+    const ready = account ? true : await connect()
+    if (ready) setPosting(true)
+  }
+
+  useEffect(() => {
+    if (posting) postRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [posting])
 
   useEffect(() => {
     if (!IS_CONFIGURED) return
@@ -346,17 +373,23 @@ function Board({
           approval.
         </p>
         <div className="hero-actions">
-          {account ? (
-            <Button onClick={() => setPosting((value) => !value)}>
-              {posting ? 'Close the form' : 'Post a role'}
-            </Button>
-          ) : (
-            <Button onClick={() => void connect()}>Connect to hire</Button>
-          )}
-          <Button tone="quiet" onClick={() => navigate('/protocol')}>
+          <Button onClick={() => void startPosting()}>
+            {posting ? 'Close the form' : 'Post a role'}
+            <span className="btn-arrow" aria-hidden>
+              {posting ? '×' : '→'}
+            </span>
+          </Button>
+          <Button tone="ghost" onClick={() => navigate('/protocol')}>
             Read the mechanics
+            <span className="btn-arrow" aria-hidden>
+              →
+            </span>
           </Button>
         </div>
+        <p className="hero-start">
+          <b>Start here.</b> Connect a wallet, write the role and fund the escrow — the panel's verdict
+          releases the payout.
+        </p>
       </section>
 
       <section className="ledger-strip" aria-label="Protocol ledger">
@@ -382,7 +415,9 @@ function Board({
       </section>
 
       {posting ? (
-        <PostForm terms={terms} run={run} onDone={() => setPosting(false)} />
+        <div className="post-anchor" ref={postRef}>
+          <PostForm terms={terms} run={run} onDone={() => setPosting(false)} />
+        </div>
       ) : null}
 
       <section className="board">

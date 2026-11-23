@@ -15,7 +15,7 @@ export default function PassportPage({
   account: string | null
   refresh: number
   run: (fn: string, args: unknown[], value: bigint, label: string) => Promise<unknown>
-  connect: () => Promise<void>
+  connect: () => Promise<boolean>
 }) {
   const target = address || account || ''
   const [lookup, setLookup] = useState('')

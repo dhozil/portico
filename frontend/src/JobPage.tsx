@@ -62,7 +62,7 @@ export default function JobPage({
   account: string | null
   refresh: number
   run: Runner
-  connect: () => Promise<void>
+  connect: () => Promise<boolean>
 }) {
   const [job, setJob] = useState<Job | null>(null)
   const [terms, setTerms] = useState<Terms | null>(null)
