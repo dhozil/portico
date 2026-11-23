@@ -23,6 +23,7 @@ const CONTRACT = process.env.CONTRACT
 const STATE_PATH = process.env.STATE_PATH || '/tmp/portico-live.json'
 const STAGE = process.argv[2] || 'show'
 const SCENARIO = process.env.SCENARIO || 'sdk'
+const GEN = 10n ** 18n
 
 /**
  * Two complete dossiers. `sdk` is the original PASS run; `ledger` is a second
@@ -83,9 +84,9 @@ const SCENARIOS = {
     deliveryEvidence:
       'https://raw.githubusercontent.com/dhozil/portico/main/docs/samples/reconciliation-runbook.md',
     appealStatement:
-      'The runbook section is a stub, so the note does not satisfy the third criterion. A partial payout is the correct reading.',
+      'The query and the settled-ledger test are the deliverable and both are published and runnable; the runbook is documentation debt, not a missing deliverable. The note is worth more than 65 percent of the brief, so the ratio should rise to 8500.',
     replyStatement:
-      'The query and the test are both published and both run. The third section is incomplete, which the note states plainly.',
+      'The third criterion is not optional. The role pays for the query, the test and the operator runbook, and the note itself says the runbook is not written. The partial ratio is generous.',
   },
 }
 
@@ -113,8 +114,6 @@ const STATUS_BY_NUMBER = {
   12: 'VALIDATORS_TIMEOUT',
   13: 'LEADER_TIMEOUT',
 }
-
-const GEN = 10n ** 18n
 
 function loadState() {
   try {
@@ -283,13 +282,24 @@ async function main() {
     saveState(state)
   }
 
+  if (STAGE === 'withdraw') {
+    console.log('withdrawing the applicant credit balance')
+    const result = await submit(c.APPLICANT, 'withdraw', [])
+    state.withdraw = result.payload
+    saveState(state)
+  }
+
   if (STAGE === 'appeal') {
+    const appellantRole = (process.env.APPELLANT || 'employer').toUpperCase()
+    if (!['EMPLOYER', 'APPLICANT'].includes(appellantRole)) {
+      throw new Error('APPELLANT must be employer or applicant')
+    }
     const job = await view(reader, 'get_job', [state.job_id])
     const share = (BigInt(job.escrow_atto) * 500n) / 10_000n
     const bond = share > 10_000_000_000_000_000n ? share : 10_000_000_000_000_000n
-    console.log('appealing the verdict with', bond.toString(), 'atto')
+    console.log('appealing the verdict as', appellantRole, 'with', bond.toString(), 'atto')
     const result = await submit(
-      c.EMPLOYER,
+      c[appellantRole],
       'appeal',
       [
         state.job_id,
@@ -298,12 +308,14 @@ async function main() {
       bond,
     )
     state.appeal = result.payload
+    state.appellant = appellantRole
     saveState(state)
   }
 
   if (STAGE === 'reply') {
-    console.log('filing the other party\'s answer to the appeal')
-    const result = await submit(c.APPLICANT, 'reply_to_appeal', [
+    const responderRole = state.appellant === 'APPLICANT' ? 'EMPLOYER' : 'APPLICANT'
+    console.log('filing the answer for', responderRole)
+    const result = await submit(c[responderRole], 'reply_to_appeal', [
       state.job_id,
       S.replyStatement,
     ])

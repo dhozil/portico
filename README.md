@@ -11,7 +11,7 @@ the work did not earn.
 
 Nobody approves the payment. No operator key can redirect it.
 
-![The settled dossier: a 100% pass, the appeal on the record, and the ledger](docs/dossier.png)
+![A settled partial: the 65% stamp, the split, and the refund on the bar](docs/dossier.png)
 
 ```
 employer funds ──► referral opens ──► validators screen ──► hire ──► delivery
@@ -25,7 +25,7 @@ employer funds ──► referral opens ──► validators screen ──► hi
 | --- | --- |
 | **Contract** | `contracts/portico.py` — one intelligent contract, no dependencies |
 | **Network** | GenLayer Studionet · chain id `61999` |
-| **Live dossier** | [`0x5aC11FD2…5193`](https://explorer-studio.genlayer.com/address/0x5aC11FD294a0E883a30802FAE20c8F148D975193) — `J1` settled at 100% after a bonded appeal and an authenticated answer |
+| **Live dossiers** | [`0x5aC11FD2…5193`](https://explorer-studio.genlayer.com/address/0x5aC11FD294a0E883a30802FAE20c8F148D975193) — `J1` settled at 100%, `J2` at 65% after an appeal upheld the partial |
 | **Interface** | 18 writes · 16 views |
 | **Consensus** | leader/validator re-derivation on screening, delivery and appeal |
 | **Tests** | 64 direct-mode tests, 0 failed |
@@ -266,16 +266,26 @@ npx vercel --prod   # from the repo root, after `npx vercel link`
 
 ### Live consensus run
 
-`frontend/scripts/live-demo.mjs` drives one dossier through every stage with real web reads and real
-model calls. Two scenarios are built in: `sdk` (a documentation role that settled at a full pass) and
-`ledger` (a reconciliation role with a partial deliverable). Set `SCENARIO` and `STATE_PATH` to keep
-their state apart. See [`docs/architecture.md`](docs/architecture.md) for the transcripts.
+`frontend/scripts/live-demo.mjs` drives a dossier through every stage with real web reads and real
+model calls. Two scenarios are built in: `sdk` (documentation, settled at a full pass) and `ledger`
+(reconciliation, a deliberately partial deliverable). Set `SCENARIO` and `STATE_PATH` to keep their
+state apart, and `APPELLANT=applicant|employer` to pick the appeal side.
+
+| Dossier | Role | Escrow | Verdict | Applicant | Referrer | Fee | Refund |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `J1` | SDK documentation engineer | 10 GEN | `PASS` · 100% | 7.000 | 2.700 | 0.300 | 0.000 |
+| `J2` | Reconciliation analyst | 6 GEN | `PARTIAL` · 65% | 2.730 | 1.053 | 0.117 | 2.100 |
+
+Both dossiers were appealed and re-read by a second consensus round. `J1` upheld a pass and forfeited
+the employer's bond; `J2` upheld a partial and forfeited the applicant's bond. See
+[`docs/architecture.md`](docs/architecture.md) for the transcripts.
 
 ```bash
 cd frontend
 CONTRACT=0x... EMPLOYER_PK=0x... REFERRER_PK=0x... APPLICANT_PK=0x... \
   node scripts/live-demo.mjs post
-# then: refer, apply, screen, hire, deliver, adjudicate, appeal, reply, resolve, settle, show
+# then: refer, apply, screen, hire, deliver, adjudicate, withdraw, appeal, reply, resolve, settle, show
+# SCENARIO=ledger APPELLANT=applicant node scripts/live-demo.mjs appeal
 ```
 
 ## Test coverage

@@ -259,8 +259,9 @@ rejection, reputation and passport stability.
 ### Live consensus on Studionet
 
 Deployed with `300` bps fee, `0.05 GEN` referral bond, `1 GEN` minimum escrow and `0.01 GEN` appeal
-floor at `0x5aC11FD294a0E883a30802FAE20c8F148D975193`. The scripted run drove one dossier through
-the full lifecycle with real web reads and real model calls:
+floor at `0x5aC11FD294a0E883a30802FAE20c8F148D975193`. The scripted run drove two dossiers through
+the full lifecycle with real web reads and real model calls: a documentation role that passed, and a
+reconciliation role whose deliverable was deliberately incomplete.
 
 | Stage | Transaction | Result |
 | --- | --- | --- |
@@ -316,6 +317,55 @@ not reach a verdict (the leader read PARTIAL against a PASS committee), so the c
 `UNDETERMINED`. The job stayed `APPEALED`, both authenticated statements stayed on file, and the
 retry upheld `PASS`. That is the protocol behaving correctly: ambiguity does not get laundered into
 state, an inconclusive round costs nothing but a retry, and the dossier remains settleable.
+
+### Second dossier: a partial, an appeal, and a strict bucket
+
+`J2` is the same contract, a different role, and a different money path. The employer funded 6 GEN
+for a reconciliation note with three criteria. The delivered note contains the escrow-versus-credits
+query and the settled-ledger test, and says in plain text that the operator runbook is not written.
+The panel scored two of three criteria and snapped the payout to 6,500 bps.
+
+| Stage | Transaction | Result |
+| --- | --- | --- |
+| `post_job` | `0x16d841c5…` | `J2`, 6 GEN funded, referral-gated |
+| `refer` | `0xee663c32…` | `R2`, 0.05 GEN bond locked |
+| `apply` | `0x4b74c0c0…` | `A2` filed against the pushed sample note |
+| `review_application` | `0x3904a41d…` | `PARTIAL` screening, gate `QUALIFIED` |
+| `hire` | `0x9a4ab790…` | `HIRED` |
+| `submit_work` | `0xdcc5f8ad…` | `DELIVERED` with the sample note |
+| `adjudicate` (round 1) | `0x31b08ad5…` | `UNDETERMINED`: the leader executed `PARTIAL`, but the committee did not match its exact ratio bucket, so no state was written |
+| `adjudicate` (round 2) | `0x8026c6c7…` | `PARTIAL` at exactly 6,500 bps, confidence 95 |
+| `withdraw` | `0xc59ccdb7…` | the applicant pulled 7.5 GEN of prior credit |
+| `appeal` | `0xc89b045f…` | the applicant bonded 0.3 GEN, arguing the runbook is documentation debt |
+| `reply_to_appeal` | `0xb7201b4b…` | the employer answered that the third criterion is not optional |
+| `resolve_appeal` | `0x72948f5c…` | `PARTIAL` upheld at 6,500 bps; the applicant's bond forfeited to the employer |
+| `settle` | `0xfaa51026…` | `SETTLED` |
+
+The first adjudication is the exact-ratio rule doing its job. Two independent readings agreed the
+work was partial but landed on different 500-point buckets, so the round produced no verdict and
+left `adjudications` at zero. A retry converged, and only then did the contract write a payout. A
+"roughly the same" partial would have paid a number no validator actually agreed on.
+
+Final credits for `J2` (6 GEN escrow plus a 0.05 GEN referral bond and a 0.3 GEN appeal bond):
+
+| Entry | Recipient | Role | Amount |
+| --- | --- | --- | --- |
+| L1 | applicant | candidate payout at 65% | 2.73 GEN |
+| L2 | referrer | referral bounty at 65% | 1.053 GEN |
+| L3 | protocol owner | protocol fee at 65% | 0.117 GEN |
+| L4 | employer | unearned escrow refunded | 2.1 GEN |
+| L5 | employer | applicant's appeal bond, forfeited | 0.3 GEN |
+| L6 | referrer | referral bond returned | 0.05 GEN |
+
+`2.73 + 1.053 + 0.117 + 2.1 = 6.0 GEN` of escrow exactly, with both bonds accounted for. The
+appeal quote shows the panel re-reading the record rather than deferring to the prior verdict:
+
+> Section 3 explicitly states "Not written yet," so criterion 3 is unmet. Two of three criteria
+> satisfied warrants PARTIAL. The runbook is a required deliverable, not optional documentation
+> debt; 6500 bps is appropriate.
+
+After both dossiers the contract reports 2 posted, 2 settled and 13.9 GEN paid out, with the board
+showing the partial first.
 
 ## 11. Deployment parameters
 
